@@ -1,0 +1,32 @@
+{
+  "name": "@qa-platform/playwright-engine",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.44.0",
+    "@qa-platform/locator-utils": "workspace:*",
+    "@qa-platform/shared": "workspace:*",
+    "playwright": "^1.44.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  }
+}

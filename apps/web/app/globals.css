@@ -1,0 +1,189 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Reset & Base ─────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+body {
+  background: #0a0a0a;
+  color: #f5f5f5;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* ─── Focus Rings ──────────────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid rgba(245, 245, 245, 0.3);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Selection ────────────────────────────────────────────────────────────── */
+
+::selection {
+  background: rgba(245, 245, 245, 0.15);
+}
+
+/* ─── Utility classes ──────────────────────────────────────────────────────── */
+
+@layer components {
+  .surface {
+    @apply bg-graphite-800 border border-graphite-400;
+  }
+
+  .surface-hover {
+    @apply hover:bg-graphite-700 transition-colors duration-150;
+  }
+
+  .text-label {
+    @apply text-xs font-semibold uppercase tracking-widest text-graphite-100;
+  }
+
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 rounded font-semibold text-sm
+           transition-all duration-150 cursor-pointer select-none border;
+  }
+
+  .btn-primary {
+    @apply btn-base bg-chalk text-graphite-900 border-transparent
+           hover:bg-chalk-100 active:bg-chalk-200;
+  }
+
+  .btn-secondary {
+    @apply btn-base bg-graphite-700 text-graphite-50 border-graphite-400
+           hover:bg-graphite-600 hover:border-graphite-300;
+  }
+
+  .btn-ghost {
+    @apply btn-base bg-transparent text-graphite-100 border-transparent
+           hover:bg-graphite-700 hover:text-chalk;
+  }
+
+  .btn-danger {
+    @apply btn-base bg-danger-bg text-danger border-danger-border
+           hover:bg-danger-bg hover:border-danger-muted;
+  }
+
+  .input-base {
+    @apply bg-graphite-700 border border-graphite-400 rounded text-sm text-chalk
+           placeholder:text-graphite-100 outline-none transition-colors duration-150
+           focus:border-graphite-300 px-3 py-2 w-full;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded text-2xs font-semibold uppercase tracking-wider px-2 py-0.5;
+  }
+
+  .badge-success {
+    @apply badge bg-success-bg border border-success-border text-success;
+  }
+
+  .badge-danger {
+    @apply badge bg-danger-bg border border-danger-border text-danger;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning-bg border border-warning-border text-warning;
+  }
+
+  .badge-neutral {
+    @apply badge bg-graphite-700 border border-graphite-400 text-graphite-50;
+  }
+
+  .badge-running {
+    @apply badge bg-info-bg border border-info-border text-info;
+  }
+
+  .card {
+    @apply bg-graphite-800 border border-graphite-400 rounded-lg;
+  }
+
+  .stat-card {
+    @apply card p-6 flex flex-col justify-center min-w-0 hover:bg-graphite-700/30 transition-colors duration-200;
+  }
+
+  .divider {
+    @apply border-t border-graphite-400;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center gap-3 py-20 text-center;
+  }
+
+  .code-text {
+    @apply font-mono text-xs text-graphite-50 bg-graphite-700 border border-graphite-400 rounded px-1.5 py-0.5;
+  }
+
+  .noise-bg {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .noise-bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+  }
+}
+
+/* ─── Log line animation ───────────────────────────────────────────────────── */
+
+@keyframes log-appear {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.log-line {
+  animation: log-appear 0.1s ease-out forwards;
+}
+
+/* ─── Recording pulse ──────────────────────────────────────────────────────── */
+
+@keyframes recording-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.recording-dot {
+  animation: recording-pulse 1.2s ease infinite;
+}

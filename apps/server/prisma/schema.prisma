@@ -1,0 +1,213 @@
+// This is your Prisma schema file for the QA Platform MVP.
+// Using PostgreSQL as the database provider.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+// MVP uses a single mock local user. Auth is isolated here for clean
+// future replacement with NextAuth / Clerk / Auth0.
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects  Project[]
+  settings  Settings[]
+
+  @@map("users")
+}
+
+// ─── Project ──────────────────────────────────────────────────────────────────
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  testCases  TestCase[]
+
+  @@map("projects")
+}
+
+// ─── Test Case ────────────────────────────────────────────────────────────────
+
+model TestCase {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  targetUrl     String
+  projectId     String?
+  lastRunStatus String?   // RunStatus enum value as string
+  lastRunAt     DateTime?
+  recordVideo   Boolean   @default(false)
+  takeScreenshots Boolean @default(true)
+  headless      Boolean   @default(false)
+  saveTraces    Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  project  Project?   @relation(fields: [projectId], references: [id])
+  steps    TestStep[]
+  runs     TestRun[]
+
+  @@map("test_cases")
+}
+
+// ─── Test Step ────────────────────────────────────────────────────────────────
+
+model TestStep {
+  id          String   @id @default(cuid())
+  testCaseId  String
+  stepNumber  Int
+  action      String   // ActionType enum value
+  timestamp   DateTime
+  url         String
+  pageTitle   String
+  title       String
+  description String
+  // Element and locator stored as JSON for flexibility
+  element     String
+  locator     String
+  screenshot  String?    // { path: string }
+  key         String?  // For 'press' actions
+  value       String?  // For 'fill' actions
+  option      String?  // For 'select' actions
+  createdAt   DateTime @default(now())
+
+  testCase TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([testCaseId, stepNumber])
+  @@map("test_steps")
+}
+
+// ─── Test Run ─────────────────────────────────────────────────────────────────
+
+model TestRun {
+  id           String    @id @default(cuid())
+  testCaseId   String
+  status       String    @default("pending") // RunStatus
+  startedAt    DateTime?
+  completedAt  DateTime?
+  durationMs   Int?
+  browser      String    @default("chromium")
+  totalSteps   Int
+  passedSteps  Int       @default(0)
+  failedStep   Int?
+  failureReason String?
+  videoPath    String?
+  tracePath    String?
+  createdAt    DateTime  @default(now())
+
+  testCase      TestCase       @relation(fields: [testCaseId], references: [id])
+  executionLogs ExecutionLog[]
+  screenshots   Screenshot[]
+  videos        Video[]
+  reports       Report[]
+
+  @@map("test_runs")
+}
+
+// ─── Execution Log ────────────────────────────────────────────────────────────
+
+model ExecutionLog {
+  id         String   @id @default(cuid())
+  runId      String
+  stepNumber Int?
+  level      String   // LogLevel
+  message    String
+  timestamp  DateTime
+  metadata   String?
+  createdAt  DateTime @default(now())
+
+  run TestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@map("execution_logs")
+}
+
+// ─── Screenshot ───────────────────────────────────────────────────────────────
+
+model Screenshot {
+  id          String   @id @default(cuid())
+  runId       String
+  stepNumber  Int?
+  path        String
+  filename    String
+  isFailure   Boolean  @default(false)
+  capturedAt  DateTime @default(now())
+
+  run TestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@map("screenshots")
+}
+
+// ─── Video ────────────────────────────────────────────────────────────────────
+
+model Video {
+  id         String   @id @default(cuid())
+  runId      String
+  path       String
+  filename   String
+  durationMs Int?
+  createdAt  DateTime @default(now())
+
+  run TestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@map("videos")
+}
+
+// ─── Report ───────────────────────────────────────────────────────────────────
+
+model Report {
+  id        String   @id @default(cuid())
+  runId     String
+  path      String
+  filename  String
+  generatedAt DateTime @default(now())
+
+  run TestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+model Settings {
+  id        String   @id @default(cuid())
+  userId    String?
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@unique([userId, key])
+  @@map("settings")
+}
+
+// ─── Environment (Client Instances) ───────────────────────────────────────────
+
+model Environment {
+  id          String   @id @default(cuid())
+  name        String
+  baseUrl     String?
+  variables   String   // JSON string of key-value pairs
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("environments")
+}
+
