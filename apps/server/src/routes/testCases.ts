@@ -10,6 +10,8 @@ import {
   updateTestCaseName,
   deleteTestCase,
   updateTestCaseStep,
+  deleteTestCaseStep,
+  insertTestCaseStep,
 } from '../services/testCaseService.js';
 
 const router = Router();
@@ -87,6 +89,51 @@ router.put(
     const { value, locator } = req.body as { value?: string | null; locator?: any };
     await updateTestCaseStep(req.params['id']!, req.params['stepId']!, { value, locator });
     res.status(204).send();
+  }),
+);
+
+// DELETE /api/test-cases/:id/steps/:stepId
+router.delete(
+  '/:id/steps/:stepId',
+  asyncHandler(async (req: Request, res: Response) => {
+    await deleteTestCaseStep(req.params['id']!, req.params['stepId']!);
+    res.status(204).send();
+  }),
+);
+
+// POST /api/test-cases/:id/steps
+router.post(
+  '/:id/steps',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { stepNumber, stepData } = req.body as {
+      stepNumber: number;
+      stepData: {
+        action: string;
+        url: string;
+        pageTitle: string;
+        title: string;
+        description: string;
+        element: any;
+        locator: any;
+        key?: string | null;
+        value?: string | null;
+        option?: string | null;
+      };
+    };
+
+    if (typeof stepNumber !== 'number') {
+      const err: ApiError = { success: false, error: 'stepNumber must be a number', code: 'VALIDATION_ERROR' };
+      res.status(400).json(err);
+      return;
+    }
+    if (!stepData || !stepData.action || !stepData.title) {
+      const err: ApiError = { success: false, error: 'stepData with action and title is required', code: 'VALIDATION_ERROR' };
+      res.status(400).json(err);
+      return;
+    }
+
+    await insertTestCaseStep(req.params['id']!, stepNumber, stepData);
+    res.status(201).json({ success: true });
   }),
 );
 

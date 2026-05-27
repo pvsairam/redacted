@@ -61,7 +61,7 @@ export const RecordedStepSchema = z.object({
   stepNumber: z.number().int().positive(),
   action: ActionTypeSchema,
   timestamp: z.string().datetime(),
-  url: z.string().url(),
+  url: z.string(),
   pageTitle: z.string(),
   title: z.string(),
   description: z.string(),
@@ -82,7 +82,7 @@ export const RecordedStepSchema = z.object({
 export const SaveRecordingRequestSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
-  targetUrl: z.string().url(),
+  targetUrl: z.string(),
   steps: z.array(RecordedStepSchema).min(1),
   projectId: z.string().optional(),
   recordVideo: z.boolean().optional(),

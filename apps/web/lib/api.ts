@@ -96,6 +96,37 @@ export async function updateTestCaseStep(
   });
 }
 
+export async function deleteTestCaseStep(
+  testCaseId: string,
+  stepId: string,
+): Promise<void> {
+  await fetch(`${BASE}/test-cases/${testCaseId}/steps/${stepId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function insertTestCaseStep(
+  testCaseId: string,
+  stepNumber: number,
+  stepData: {
+    action: string;
+    url: string;
+    pageTitle: string;
+    title: string;
+    description: string;
+    element: any;
+    locator: any;
+    key?: string | null;
+    value?: string | null;
+    option?: string | null;
+  }
+): Promise<void> {
+  await request(`${BASE}/test-cases/${testCaseId}/steps`, {
+    method: 'POST',
+    body: JSON.stringify({ stepNumber, stepData }),
+  });
+}
+
 // ─── Test Runs ────────────────────────────────────────────────────────────────
 
 export async function getTestRun(id: string): Promise<TestRun> {

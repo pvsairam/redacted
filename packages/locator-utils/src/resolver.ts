@@ -16,8 +16,10 @@ import { describeLocator } from './generator.js';
  */
 function entryToPlaywrightLocator(page: Page, entry: LocatorEntry): Locator {
   switch (entry.strategy) {
-    case 'aria-label':
-      return page.getByLabel(entry.value, { exact: false });
+    case 'aria-label': {
+      const escaped = entry.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      return page.locator(`[aria-label*="${escaped}" i]`);
+    }
 
     case 'role':
       return page.getByRole(
@@ -40,15 +42,21 @@ function entryToPlaywrightLocator(page: Page, entry: LocatorEntry): Locator {
     case 'name':
       return page.locator(`[name="${entry.value}"]`);
 
-    case 'id':
-      // Simple ID escape: prefix numbers, escape special CSS chars
-      return page.locator(`#${entry.value.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\\\$1')}`);
+    case 'id': {
+      // Escape all CSS special characters in the ID value.
+      // Oracle IDs often contain colons, pipes, and brackets which break CSS selectors.
+      // Using CSS.escape-equivalent logic: escape anything that isn't alphanumeric or hyphen.
+      const escapedId = entry.value.replace(/([^\w-])/g, '\\$1');
+      return page.locator(`#${escapedId}`);
+    }
 
     case 'css': {
-      // Sanitize CSS selectors containing colons in ID segments (e.g. Oracle ADF '#pt1:atklc1').
-      // A colon in a CSS ID selector is treated as a pseudo-class separator, causing
-      // a SyntaxError. We escape each colon that appears after a '#word' segment.
-      const sanitized = entry.value.replace(/(#[^\s[>.+~,:(]+):(\w)/g, '$1\\:$2');
+      // Sanitize CSS selectors containing special chars in ID segments.
+      // Oracle ADF/IDCS IDs use colons (pseudo-class separator) and pipes (namespace separator).
+      // We escape all colons and pipes that appear inside ID selectors.
+      const sanitized = entry.value.replace(/#[^\s[>.+~,()#.]+/g, (match) => {
+        return '#' + match.slice(1).replace(/:/g, '\\:').replace(/\|/g, '\\|');
+      });
       return page.locator(sanitized);
     }
 
@@ -98,7 +106,10 @@ export async function resolveLocator(
   for (let i = 0; i < allEntries.length; i++) {
     const entry = allEntries[i]!;
     try {
-      const locator = entryToPlaywrightLocator(page, entry);
+      let locator = entryToPlaywrightLocator(page, entry);
+      // Filter for visible elements to avoid strict mode violations if multiple matches exist in DOM (some hidden)
+      locator = locator.filter({ visible: true });
+
       // Quick visibility check — if visible within checkTimeoutMs, this is our match
       await locator.waitFor({ state: 'visible', timeout: checkTimeoutMs });
       return {

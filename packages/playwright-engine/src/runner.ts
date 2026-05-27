@@ -101,6 +101,50 @@ export async function replayTestCase(input: RunnerInput): Promise<RunResult> {
     let initialCookies: any[] = [];
     let twoContextUsed = false;
 
+    /**
+     * Detect if a URL belongs to an SSO/identity/login provider.
+     * Oracle IDCS, OAM, and similar IdPs redirect to subdomains like:
+     *   idcs-*.identity.oraclecloud.com, login.oracle.com, etc.
+     */
+    function isSsoPage(url: string): boolean {
+      try {
+        const { hostname, pathname } = new URL(url);
+        return (
+          hostname.includes('identity.oraclecloud.com') ||
+          hostname.includes('oraclecloud.com') && pathname.includes('/ui/v1/') ||
+          hostname.includes('login.oracle.com') ||
+          hostname.includes('login.microsoftonline.com') ||
+          hostname.includes('accounts.google.com') ||
+          hostname.includes('okta.com') ||
+          pathname.includes('/signin') ||
+          pathname.includes('/login') ||
+          pathname.includes('/auth')
+        );
+      } catch {
+        return false;
+      }
+    }
+
+    /**
+     * Check if the recording appears to contain login steps
+     * (username/password fills early in the sequence — within first 8 steps).
+     */
+    function recordingHasLoginSteps(): boolean {
+      const earlySteps = steps.slice(0, 8);
+      return earlySteps.some((s) => {
+        if (s.action !== 'fill') return false;
+        const loc = s.locator.primary.value.toLowerCase();
+        const title = (s.title ?? '').toLowerCase();
+        const val = (s.element?.ariaLabel ?? s.element?.label ?? s.element?.placeholder ?? '').toLowerCase();
+        return (
+          loc.includes('username') || loc.includes('password') ||
+          title.includes('username') || title.includes('password') ||
+          val.includes('username') || val.includes('password') ||
+          (s.element?.isSensitive === true)
+        );
+      });
+    }
+
     if (initialUrl && steps[0]?.action === 'navigate') {
       logger.info(`Performing initial navigation in temporary context to negotiate session...`);
       twoContextUsed = true;
@@ -119,6 +163,29 @@ export async function replayTestCase(input: RunnerInput): Promise<RunResult> {
         landedUrl = tempPage.url();
         initialCookies = await tempContext.cookies();
         logger.info(`Initial navigation complete. Landed URL: ${landedUrl}`);
+
+        // ── Pre-authenticated recording detection ──────────────────────────
+        // If the probe landed on an SSO/login page BUT the recording has no
+        // login steps, the test was recorded from an already-logged-in session.
+        // Redirecting the main context to the SSO page would fail because
+        // none of the recorded steps match the login form.
+        //
+        // In this case: skip the SSO redirect and navigate the main session
+        // directly to the first non-navigate step's URL (the authenticated page).
+        if (isSsoPage(landedUrl ?? '') && !recordingHasLoginSteps()) {
+          logger.info(
+            `Probe landed on SSO page but recording has no login steps — ` +
+            `treating this as a pre-authenticated recording. ` +
+            `Will navigate directly to the first recorded step URL.`,
+          );
+          // Find the URL of the first real action step (not navigate)
+          const firstActionStep = steps.find((s) => s.action !== 'navigate');
+          const targetUrl = firstActionStep?.url ?? initialUrl;
+          // Override landedUrl so the main context skips the SSO page
+          landedUrl = targetUrl ?? landedUrl;
+          // Clear SSO cookies — they are useless without completing the SSO flow
+          initialCookies = [];
+        }
       } catch (err) {
         logger.error(`Initial navigation failed in temporary context: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
@@ -227,8 +294,14 @@ export async function replayTestCase(input: RunnerInput): Promise<RunResult> {
     if (twoContextUsed && landedUrl) {
       logger.info(`Directly navigating recorded session to landed URL: ${landedUrl}`);
       await page.goto(landedUrl, { waitUntil: 'domcontentloaded', timeout: settings.stepTimeoutMs });
-      // Wait up to 5 seconds for dynamic sign-in page elements to finish loading
-      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+      // Wait longer for dynamic sign-in or enterprise app pages to fully render
+      // Oracle IDCS login page is slow to inject form fields — allow up to 8s
+      await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+      // Extra buffer for slow Oracle identity pages
+      if (isSsoPage(landedUrl)) {
+        logger.info(`SSO page detected — waiting extra 2s for login form to render`);
+        await new Promise((r) => setTimeout(r, 2000));
+      }
       
       // Capture Step 1 screenshot
       const screenshot = await captureStepScreenshot(
@@ -314,8 +387,9 @@ export async function replayTestCase(input: RunnerInput): Promise<RunResult> {
         if (step.action === 'navigate' && lastNavigatedUrl) {
           const stepHost = (() => { try { return new URL(step.url).hostname; } catch { return ''; } })();
           const lastHost = (() => { try { return new URL(lastNavigatedUrl).hostname; } catch { return ''; } })();
-          if (stepHost && lastHost && stepHost === lastHost) {
-            logger.info(`Step ${step.stepNumber}: skipping redundant navigate (already on '${stepHost}' from previous navigate)`, step.stepNumber);
+          const isBothSso = isSsoPage(step.url) && isSsoPage(lastNavigatedUrl);
+          if ((stepHost && lastHost && stepHost === lastHost) || isBothSso) {
+            logger.info(`Step ${step.stepNumber}: skipping redundant navigate (already on '${lastHost}' from previous navigate)`, step.stepNumber);
             const skippedResult: StepExecutionResult = {
               stepNumber: step.stepNumber,
               result: 'passed',

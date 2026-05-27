@@ -180,3 +180,92 @@ export async function updateTestCaseStep(
     data: updateData,
   });
 }
+
+export async function deleteTestCaseStep(
+  testCaseId: string,
+  stepId: string,
+): Promise<void> {
+  // Delete the step
+  await prisma.testStep.delete({
+    where: { id: stepId, testCaseId },
+  });
+
+  // Re-number remaining steps sequentially so there are no gaps
+  const remaining = await prisma.testStep.findMany({
+    where: { testCaseId },
+    orderBy: { stepNumber: 'asc' },
+    select: { id: true },
+  });
+
+  await Promise.all(
+    remaining.map((s, i) =>
+      prisma.testStep.update({
+        where: { id: s.id },
+        data: { stepNumber: i + 1 },
+      }),
+    ),
+  );
+
+  // Touch the test case updatedAt
+  await prisma.testCase.update({
+    where: { id: testCaseId },
+    data: { updatedAt: new Date() },
+  });
+}
+
+export async function insertTestCaseStep(
+  testCaseId: string,
+  stepNumber: number,
+  data: {
+    action: string;
+    url: string;
+    pageTitle: string;
+    title: string;
+    description: string;
+    element: any;
+    locator: any;
+    key?: string | null;
+    value?: string | null;
+    option?: string | null;
+  }
+): Promise<void> {
+  // Find all steps with stepNumber >= target stepNumber and increment them by 1.
+  // Shift in descending order (last first) to prevent unique constraint violations on (testCaseId, stepNumber).
+  const subsequentSteps = await prisma.testStep.findMany({
+    where: { testCaseId, stepNumber: { gte: stepNumber } },
+    orderBy: { stepNumber: 'desc' },
+  });
+
+  for (const s of subsequentSteps) {
+    await prisma.testStep.update({
+      where: { id: s.id },
+      data: { stepNumber: s.stepNumber + 1 },
+    });
+  }
+
+  // Create the new step
+  await prisma.testStep.create({
+    data: {
+      testCaseId,
+      stepNumber,
+      action: data.action,
+      timestamp: new Date(),
+      url: data.url,
+      pageTitle: data.pageTitle,
+      title: data.title,
+      description: data.description,
+      element: JSON.stringify(data.element),
+      locator: JSON.stringify(data.locator),
+      key: data.key ?? null,
+      value: data.value ?? null,
+      option: data.option ?? null,
+    },
+  });
+
+  // Touch the test case updatedAt
+  await prisma.testCase.update({
+    where: { id: testCaseId },
+    data: { updatedAt: new Date() },
+  });
+}
+

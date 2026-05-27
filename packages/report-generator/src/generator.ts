@@ -290,11 +290,12 @@ export async function generateReport(input: ReportInput): Promise<GenerateReport
             children: [
               new ImageRun({
                 data: imgBuffer,
-                transformation: { width: 600, height: 340 },
+                transformation: { width: 820, height: 462 },
                 type: 'png',
               }),
             ],
-            spacing: { before: 120, after: 240 },
+            spacing: { before: 120, after: 200 },
+            alignment: AlignmentType.CENTER,
           }),
         );
       }
@@ -370,8 +371,10 @@ export async function generateReport(input: ReportInput): Promise<GenerateReport
         properties: {
           page: {
             size: {
-              width: 12240,  // Short edge (8.5" in dxa)
-              height: 15840, // Long edge (11" in dxa)
+              // True landscape: width = long edge (11"), height = short edge (8.5")
+              // 1 inch = 1440 dxa
+              width: 15840,  // 11" in dxa
+              height: 12240, // 8.5" in dxa
               orientation: PageOrientation.LANDSCAPE,
             },
           },
@@ -411,26 +414,28 @@ export async function generateReport(input: ReportInput): Promise<GenerateReport
           }),
         },
         children: [
-          // Cover
+          // Cover — brand name, test case title, status
           new Paragraph({
-            children: [boldText('[REDACTED]', 48, COLORS.black)],
-            spacing: { before: 0, after: 80 },
+            children: [boldText('[REDACTED]', 40, COLORS.primary)],
+            spacing: { before: 0, after: 60 },
           }),
           new Paragraph({
-            children: [normalText('Private Beta - Test Execution Report', 24, COLORS.medGray)],
-            spacing: { after: 600 },
+            children: [
+              new TextRun({ text: 'TEST EXECUTION REPORT', size: 20, color: COLORS.medGray, font: 'Segoe UI', bold: true }),
+            ],
+            spacing: { after: 480 },
           }),
 
           new Paragraph({
-            children: [boldText(run.testCaseName, 36, COLORS.black)],
-            spacing: { after: 80 },
+            children: [boldText(run.testCaseName, 32, COLORS.black)],
+            spacing: { after: 100 },
           }),
           new Paragraph({
             children: [
               new TextRun({
-                text: statusText,
+                text: `\u2022  ${statusText}  \u2022  ${run.passedSteps}/${run.totalSteps} steps passed  \u2022  ${durationStr}`,
                 bold: true,
-                size: 28,
+                size: 22,
                 color: statusColor,
                 font: 'Segoe UI',
               }),

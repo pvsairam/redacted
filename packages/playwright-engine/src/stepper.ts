@@ -280,6 +280,16 @@ async function executeStepOnce(
       // 5. Remove highlight
       await removeHighlight(locator);
 
+      // Warn if template variables are unresolved (e.g. {{PASSWORD}} when env var not set)
+      const unresolvedMatch = value.match(/\{\{([^}]+)\}\}/);
+      if (unresolvedMatch) {
+        logger.warn(
+          `Step ${step.stepNumber}: fill value still contains unresolved template variable '${unresolvedMatch[0]}' — ` +
+          `set the ${unresolvedMatch[1]} environment variable in Settings → Environments to avoid invalid credential errors.`,
+          step.stepNumber,
+        );
+      }
+
       logger.debug(
         `Filled with: ${step.element.isSensitive ? '[REDACTED]' : value}`,
         step.stepNumber,

@@ -82,7 +82,8 @@ export async function captureStepScreenshot(
   const filePath = path.join(screenshotsDir, filename);
 
   try {
-    await page.screenshot({ path: filePath, fullPage: false, animations: 'disabled' });
+    logger.debug(`Capturing screenshot for step ${stepNumber}...`, stepNumber);
+    await page.screenshot({ path: filePath, fullPage: false, animations: 'disabled', timeout: 5000 });
     logger.debug(`Screenshot saved: ${filename}`, stepNumber);
     return { path: filePath, filename };
   } catch (err) {
@@ -111,7 +112,8 @@ export async function captureFailureScreenshot(
   const filePath = path.join(screenshotsDir, filename);
 
   try {
-    await page.screenshot({ path: filePath, fullPage: true, animations: 'disabled' });
+    logger.debug(`Capturing failure screenshot for step ${stepNumber}...`, stepNumber);
+    await page.screenshot({ path: filePath, fullPage: true, animations: 'disabled', timeout: 5000 });
     logger.info(`Failure screenshot saved: ${filename}`, stepNumber);
     return { path: filePath, filename };
   } catch (err) {

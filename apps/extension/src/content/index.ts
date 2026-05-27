@@ -181,7 +181,23 @@ function getElementSnapshot(el: Element) {
 
   const isSensitive = isSensitiveField(sensitivityInput);
   const rawValue = input.value ?? elementText;
-  const maskedValue = isSensitive ? '{{PASSWORD}}' : rawValue;
+  
+  // Determine if this is a username/email field
+  const isUsernameField = (() => {
+    const candidates = [input.name, el.getAttribute('aria-label'), labelText, input.placeholder]
+      .filter(Boolean)
+      .map((s) => s!.toLowerCase());
+    return candidates.some((c) => /user.?name|email|login|user.?id|account/i.test(c));
+  })();
+
+  // Always template credentials: passwords use {{PASSWORD}}, usernames use {{USERNAME}}
+  // This prevents raw credentials from being stored in the DB and ensures replay
+  // always uses the environment's configured credentials (never stale recorded values).
+  const maskedValue = isSensitive
+    ? '{{PASSWORD}}'
+    : isUsernameField
+      ? '{{USERNAME}}'
+      : rawValue;
 
   // Build DOM snapshot for locator generator
   const dataAttributes: Record<string, string> = {};
